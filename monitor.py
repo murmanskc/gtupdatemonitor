@@ -1,43 +1,32 @@
-import requests
-from bs4 import BeautifulSoup
-import json
 import os
+import requests
+from steam.client import SteamClient
 
-# --- Configuration ---
-# Replace this with the actual SteamDB URL for Growtopia
-STEAMDB_URL = "https://steamdb.info/app/866020/info/" 
-# Your Discord Webhook URL (set this in GitHub Secrets)
-WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK") 
+APP_ID = 866020 # Growtopia's App ID
+WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK")
 STATE_FILE = "last_changenumber.txt"
 
-def get_current_changenumber():
-    # We use a standard browser header to try and bypass basic bot detection
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    
+def get_changenumber():
     try:
-        response = requests.get(STEAMDB_URL, headers=headers, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+        print("Connecting directly to Steam's network...")
+        client = SteamClient()
+        # Login anonymously (does not require a Steam account)
+        client.anonymous_login()
         
-        # Find the table row containing "Last Changenumber"
-        # SteamDB usually puts this in a <td>, and the number in the next <td>
-        changenumber_label = soup.find(text="Last Changenumber")
-        
-        if changenumber_label:
-            # Navigate to the parent element, then find the value
-            # Note: HTML structure might require tweaking if SteamDB updates their layout
-            parent_row = changenumber_label.find_parent('tr') 
-            if parent_row:
-                value_td = parent_row.find_all('td')[1]
-                return value_td.text.strip()
-                
-        print("Could not find the changenumber on the page. Cloudflare might be blocking the request.")
+        # Fetch the raw product info straight from Valve's database
+        info = client.get_product_info(apps=[APP_ID])
+        client.logout()
+
+        # Extract the changenumber from the data dictionary
+        if info and 'apps' in info and APP_ID in info['apps']:
+            changenumber = info['apps'][APP_ID].get('change_number')
+            if changenumber:
+                return str(changenumber)
+
+        print("Failed to find change_number in Steam response.")
         return None
-        
     except Exception as e:
-        print(f"Error fetching page: {e}")
+        print(f"Error connecting to Steam: {e}")
         return None
 
 def send_discord_alert(old_num, new_num):
@@ -46,31 +35,28 @@ def send_discord_alert(old_num, new_num):
         return
 
     message = {
-        "content": f"🚨 **Growtopia Update Detected on SteamDB!** 🚨\n\n**Old Changenumber:** {old_num}\n**New Changenumber:** {new_num}\n\nCheck it here: {STEAMDB_URL}"
+        "content": f"🚨 **Growtopia Update Detected!** 🚨\n\n**Old Changenumber:** {old_num}\n**New Changenumber:** {new_num}\n\n*(Data pulled directly from Steam's network)*\nCheck manually: https://steamdb.info/app/{APP_ID}/info/"
     }
     
     requests.post(WEBHOOK_URL, json=message)
 
 def main():
-    current_number = get_current_changenumber()
+    current_number = get_changenumber()
     if not current_number:
         return
 
     print(f"Current Changenumber found: {current_number}")
 
-    # Read the last known number
     last_number = ""
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
             last_number = f.read().strip()
 
-    # Compare and alert
     if current_number != last_number:
         print("Change detected! Sending alert...")
-        if last_number != "": # Don't alert on the very first run
+        if last_number != "":
             send_discord_alert(last_number, current_number)
         
-        # Save the new number to the file
         with open(STATE_FILE, "w") as f:
             f.write(current_number)
     else:
