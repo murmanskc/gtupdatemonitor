@@ -1,0 +1,39 @@
+name: SteamDB Monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # Runs every 5 minutes
+  workflow_dispatch: # Allows you to run it manually from the GitHub UI
+
+jobs:
+  check-steamdb:
+    runs-on: ubuntu-latest
+    
+    # We need permission to commit the state file back to the repo
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run Monitor Script
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: python monitor.py
+
+      - name: Commit and push state file
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add last_changenumber.txt
+          # Only commit if the file has changed
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update last changenumber state" && git push)
