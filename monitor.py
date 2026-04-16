@@ -15,21 +15,16 @@ def get_changenumber():
         info = client.get_product_info(apps=[APP_ID])
         client.logout()
 
-        # --- DEBUG TOOL: Print the raw data Valve sends us ---
-        print("--- RAW STEAM DATA ---")
-        print(info)
-        print("----------------------")
-
         if info and 'apps' in info and APP_ID in info['apps']:
             app_data = info['apps'][APP_ID]
             
-            # Try multiple common keys Valve uses for this data
-            changenumber = app_data.get('change_number') or app_data.get('changenumber')
+            # Found the exact key Valve uses!
+            changenumber = app_data.get('_change_number')
             
             if changenumber:
                 return str(changenumber)
 
-        print("Failed to find change_number in Steam response.")
+        print("Failed to find _change_number in Steam response.")
         return None
     except Exception as e:
         print(f"Error connecting to Steam: {e}")
