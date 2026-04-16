@@ -10,16 +10,22 @@ def get_changenumber():
     try:
         print("Connecting directly to Steam's network...")
         client = SteamClient()
-        # Login anonymously (does not require a Steam account)
         client.anonymous_login()
         
-        # Fetch the raw product info straight from Valve's database
         info = client.get_product_info(apps=[APP_ID])
         client.logout()
 
-        # Extract the changenumber from the data dictionary
+        # --- DEBUG TOOL: Print the raw data Valve sends us ---
+        print("--- RAW STEAM DATA ---")
+        print(info)
+        print("----------------------")
+
         if info and 'apps' in info and APP_ID in info['apps']:
-            changenumber = info['apps'][APP_ID].get('change_number')
+            app_data = info['apps'][APP_ID]
+            
+            # Try multiple common keys Valve uses for this data
+            changenumber = app_data.get('change_number') or app_data.get('changenumber')
+            
             if changenumber:
                 return str(changenumber)
 
