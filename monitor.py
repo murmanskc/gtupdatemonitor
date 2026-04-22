@@ -36,7 +36,7 @@ def send_discord_alert(old_num, new_num):
         return
 
     message = {
-        "content": f"@natsu.n 🚨 **Growtopia Update Detected!** 🚨\n\n**Old Changenumber:** {old_num}\n**New Changenumber:** {new_num}\n\n*(Data pulled directly from Steam's network)*\nCheck manually: https://steamdb.info/app/{APP_ID}/info/"
+        "content": f"<@730734543740338246> 🚨 **Growtopia Update Detected!** 🚨\n\n**Old Changenumber:** {old_num}\n**New Changenumber:** {new_num}\n\n*(Data pulled directly from Steam's network)*\nCheck manually: https://steamdb.info/app/{APP_ID}/info/"
     }
     
     requests.post(WEBHOOK_URL, json=message)
